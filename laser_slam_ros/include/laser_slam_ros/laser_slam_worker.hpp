@@ -13,6 +13,7 @@
 
 #include "laser_slam_ros/GetLaserTrackSrv.h"
 #include "laser_slam_ros/common.hpp"
+#include "laser_slam_ros/visual_view.hpp"
 
 namespace laser_slam_ros {
 
@@ -46,7 +47,7 @@ class LaserSlamWorker {
 
   // Get a vector containing the optimized point clouds recorded since
   // the last call to this method. This call clears the point cloud queue.
-  std::vector<laser_slam_ros::PointCloud> getQueuedPoints();
+  std::pair<std::vector<laser_slam_ros::PointCloud>, std::vector<laser_slam_ros::VisualView>> getQueuedPoints();
 
   void clearLocalMap();
 
@@ -137,6 +138,8 @@ class LaserSlamWorker {
   // TODO(mattia): switch from local_map_ to local_map_queue_
   laser_slam_ros::PointCloud local_map_;
   std::vector<laser_slam_ros::PointCloud> local_map_queue_;
+  std::vector<laser_slam_ros::VisualView> local_map_vis_view_queue_;
+  ros::Publisher vis_view_pub_;
 
   laser_slam_ros::PointCloud local_map_filtered_;
 

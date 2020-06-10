@@ -20,6 +20,7 @@
 #include <pointmatcher_ros/transform.h>
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
 #include <std_msgs/String.h>
 #include <tf_conversions/tf_eigen.h>
 #include <tf/transform_broadcaster.h>
@@ -91,6 +92,8 @@ void LaserSlamWorker::init(
   //  }
   //  new_fixed_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("new_fixed_cloud",
   //                                                               kPublisherQueueSize);
+
+  vis_view_pub_ = nh.advertise<sensor_msgs::Image>("vis_view_intensity", kPublisherQueueSize);
 }
 
 void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in) {
@@ -242,6 +245,38 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
               local_map_ = new_fixed_cloud_pcl;
             }
             local_map_queue_.push_back(new_fixed_cloud_pcl);
+            ROS_INFO_STREAM("Emplacing new vis view");
+            local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
+            {
+              ROS_INFO_STREAM("Publishing message");
+              static constexpr double int_scale = 0.2;
+
+              const VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
+
+              static int seq = 0;
+
+              sensor_msgs::Image vis_view_msg;
+              vis_view_msg.header.frame_id = "ouster";
+              vis_view_msg.header.seq = seq++;
+              vis_view_msg.header.stamp = ros::Time::now();
+
+              vis_view_msg.height = intensity.rows();
+              vis_view_msg.width = intensity.cols();
+              vis_view_msg.encoding = "mono8";
+              vis_view_msg.is_bigendian = false;
+              // 16 bits = 2 bytes
+              vis_view_msg.step = intensity.cols();
+              vis_view_msg.data.resize(intensity.rows() * intensity.cols());
+              ROS_INFO_STREAM("Writing data, max value = " << intensity.maxCoeff());
+              for(int r = 0; r < intensity.rows(); ++r) {
+                for(int c = 0; c < intensity.cols(); ++c) {
+                  reinterpret_cast<uint8_t*>(vis_view_msg.data.data())[r * intensity.cols() + c] =
+                      (uint8_t)std::min(intensity(r, c) * int_scale, 255.0);
+                }
+              }
+
+              vis_view_pub_.publish(vis_view_msg);
+            }
           }
         }
       }
@@ -404,11 +439,13 @@ Time LaserSlamWorker::curveTimeToRosTime(const Time& timestamp_ns) const {
   return timestamp_ns + base_time_ns_;
 }
 
-std::vector<laser_slam_ros::PointCloud> LaserSlamWorker::getQueuedPoints() {
+std::pair<std::vector<laser_slam_ros::PointCloud>, std::vector<laser_slam_ros::VisualView>> LaserSlamWorker::getQueuedPoints() {
   std::lock_guard<std::recursive_mutex> lock(local_map_mutex_);
   std::vector<laser_slam_ros::PointCloud> new_points;
+  std::vector<laser_slam_ros::VisualView> new_views;
   new_points.swap(local_map_queue_);
-  return new_points;
+  new_views.swap(local_map_vis_view_queue_);
+  return std::make_pair(new_points, new_views);
 }
 
 // TODO one shot of cleaning.

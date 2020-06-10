@@ -18,6 +18,7 @@ catkin_simple(ALL_DEPS_REQUIRED)
 
 cs_add_library(${PROJECT_NAME} 
     src/laser_slam_worker.cpp
+    src/visual_view.cpp
 )
 
 cs_install()
