@@ -245,13 +245,15 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
               local_map_ = new_fixed_cloud_pcl;
             }
             local_map_queue_.push_back(new_fixed_cloud_pcl);
-            ROS_INFO_STREAM("Emplacing new vis view");
+            // ROS_INFO_STREAM("Emplacing new vis view");
             local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
             {
-              ROS_INFO_STREAM("Publishing message");
+              // ROS_INFO_STREAM("Publishing message");
               static constexpr double int_scale = 0.2;
 
               const VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
+              const VisualView::Matrix &range = local_map_vis_view_queue_.back().getRange();
+              const VisualView::MatrixInt &count = local_map_vis_view_queue_.back().getCount();
 
               static int seq = 0;
 
@@ -267,7 +269,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
               // 16 bits = 2 bytes
               vis_view_msg.step = intensity.cols();
               vis_view_msg.data.resize(intensity.rows() * intensity.cols());
-              ROS_INFO_STREAM("Writing data, max value = " << intensity.maxCoeff());
+              // ROS_INFO_STREAM("Writing data, max value = " << intensity.maxCoeff());
               for(int r = 0; r < intensity.rows(); ++r) {
                 for(int c = 0; c < intensity.cols(); ++c) {
                   reinterpret_cast<uint8_t*>(vis_view_msg.data.data())[r * intensity.cols() + c] =

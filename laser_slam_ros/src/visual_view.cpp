@@ -31,6 +31,8 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pos
     intensity.setZero();
     range.resize(vertRes, horRes);
     range.setZero();
+    count.resize(vertRes, horRes);
+    count.setZero();
     unsigned intDim = 0;
     if(iscan.scan.descriptorExists("intensity")){
         intDim = iscan.scan.getDescriptorDimension("intensity");
@@ -56,21 +58,21 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pos
           }
           float vertAngle = atan2(z, horRange);
 
-          // cout << i << ": (" << x << ", " << y << ", " << z << ")" << endl;
-          // cout << "horAngle = " << horAngle << "\tvertAngle = " << vertAngle << "\tintensity = " << intVal << endl;
-
-          int horCoord = round(horAngle / (2 * M_PI) * horRes);
-          int vertCoord = round((vertRange / 2.0 - vertAngle) / vertRange * vertRes);
-
-          // cout << "horCoord = " << horCoord << "\tvertCoord = " << vertCoord << endl;
+          int horCoord = int(horAngle / (2 * M_PI) * horRes);
+          int vertCoord = int((vertRange / 2.0 - vertAngle) / vertRange * vertRes);
 
           if(horCoord < 0 || horRes <= horCoord || vertCoord < 0 || vertRes <= vertCoord) {
+            cout << i << ": (" << x << ", " << y << ", " << z << ")" << endl;
+            cout << "horAngle = " << horAngle << "\tvertAngle = " << vertAngle << "\tintensity = " << intVal << endl;
+            cout << "horCoord = " << horCoord << "\tvertCoord = " << vertCoord << endl;
+
             LOG(ERROR) << "Wrong image coordinates";
-            // throw "Wrong image coordinates";
+            throw "Wrong image coordinates";
           }
 
           intensity(vertCoord, horCoord) = intVal;
           range(vertCoord, horCoord) = rangeVal;
+          count(vertCoord, horCoord) += 1;
         }
     }
 }

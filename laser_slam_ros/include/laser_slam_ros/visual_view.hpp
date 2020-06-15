@@ -22,16 +22,28 @@ namespace laser_slam_ros {
 
         VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pose &ipose);
 
+        const laser_slam::Pose& getPose() const {
+          return pose;
+        }
+
+        const curves::Time& getTime() const {
+          return time_ns;
+        }
+
         // MatrixInt getMask(const segmatch::SegmentedCloud &segmentedCloud);
 
         MatrixInt getMask(const laser_slam_ros::PointCloud &point_cloud);
 
-        const Matrix& getIntensity(){
-            return intensity;
+        const Matrix& getIntensity() const {
+          return intensity;
         }
 
-        const Matrix& getRange(){
-            return range;
+        const Matrix& getRange() const {
+          return range;
+        }
+
+        const MatrixInt& getCount() const {
+          return count;
         }
 
     private:
@@ -40,6 +52,7 @@ namespace laser_slam_ros {
 
         Matrix intensity;
         Matrix range;
+        MatrixInt count;
     };
 
 }
