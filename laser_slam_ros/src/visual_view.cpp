@@ -21,12 +21,6 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pos
     pose = ipose;
     time_ns = iscan.time_ns;
 
-    // TODO move to params or detect
-    int horRes = 1024;
-    int vertRes = 64;
-    float vertRange = 45.0 * M_PI / 180.0;
-    float rangeThresh = 1.0;
-
     intensity.resize(vertRes, horRes);
     intensity.setZero();
     range.resize(vertRes, horRes);
@@ -50,20 +44,12 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pos
         float rangeVal = std::sqrt(x*x + y*y + z*z);
 
         if(rangeVal > rangeThresh) {
-          float horRange = std::sqrt(x*x + y*y);
-
-          float horAngle = atan2(-y, x);
-          if (horAngle < 0) {
-            horAngle += 2.0 * M_PI;
-          }
-          float vertAngle = atan2(z, horRange);
-
-          int horCoord = int(horAngle / (2 * M_PI) * horRes);
-          int vertCoord = int((vertRange / 2.0 - vertAngle) / vertRange * vertRes);
+          int horCoord = getHorCoord(x, y, z);
+          int vertCoord = getVertCoord(x, y, z);
 
           if(horCoord < 0 || horRes <= horCoord || vertCoord < 0 || vertRes <= vertCoord) {
             cout << i << ": (" << x << ", " << y << ", " << z << ")" << endl;
-            cout << "horAngle = " << horAngle << "\tvertAngle = " << vertAngle << "\tintensity = " << intVal << endl;
+            // cout << "horAngle = " << horAngle << "\tvertAngle = " << vertAngle << "\tintensity = " << intVal << endl;
             cout << "horCoord = " << horCoord << "\tvertCoord = " << vertCoord << endl;
 
             LOG(ERROR) << "Wrong image coordinates";
@@ -77,9 +63,46 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pos
     }
 }
 
+int VisualView::getHorCoord(const float &x, const float &y, const float &z) const {
+  float horAngle = atan2(-y, x);
+  if (horAngle < 0) {
+    horAngle += 2.0 * M_PI;
+  }
+
+  int horCoord = int(horAngle / (2 * M_PI) * horRes);
+
+  return horCoord;
+}
+
+int VisualView::getVertCoord(const float &x, const float &y, const float &z) const {
+  float horRange = std::sqrt(x*x + y*y);
+
+  float vertAngle = atan2(z, horRange);
+  int vertCoord = int((vertRange / 2.0 - vertAngle) / vertRange * vertRes);
+
+  return vertCoord;
+}
+
 VisualView::MatrixInt
-VisualView::getMask(const laser_slam_ros::PointCloud &point_cloud) {
-    return laser_slam_ros::VisualView::MatrixInt();
+VisualView::getMask(const laser_slam_ros::PointCloud &point_cloud) const {
+  MatrixInt mask;
+  mask.resize(vertRes, horRes);
+  mask.setZero();
+
+  for(int p = 0; p < point_cloud.size(); ++p) {
+    Eigen::Vector3d ptSensor = pose.T_w.inverseTransform(point_cloud.at(p).getVector3fMap().cast<double>());
+
+    int horCoord = getHorCoord(ptSensor(0), ptSensor(1), ptSensor(2));
+    int vertCoord = getVertCoord(ptSensor(0), ptSensor(1), ptSensor(2));
+
+    // cout << p << ": (" << ptSensor(0) << ", " << ptSensor(1) << ", " << ptSensor(2) << ")" << endl;
+    // cout << "horCoord = " << horCoord << "\tvertCoord = " << vertCoord << endl;
+
+    if(0 <= horCoord && horCoord < horRes && 0 <= vertCoord && vertCoord < vertRes) {
+      mask(vertCoord, horCoord) += 1;
+    }
+  }
+  return mask;
 }
 
 }
