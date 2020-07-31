@@ -28,9 +28,14 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include <opencv2/opencv.hpp>
+
 namespace laser_slam_ros {
 
 using namespace laser_slam;
+
+using std::cout;
+using std::endl;
 
 LaserSlamWorker::LaserSlamWorker() { }
 
@@ -247,6 +252,36 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
             local_map_queue_.push_back(new_fixed_cloud_pcl);
             // ROS_INFO_STREAM("Emplacing new vis view");
             local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
+            // {
+            //   const laser_slam_ros::VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
+            //   const laser_slam_ros::VisualView::MatrixInt &mask = local_map_vis_view_queue_.back().getMask(new_fixed_cloud_pcl);
+            //
+            //   cv::Mat intensityMat(intensity.rows(), intensity.cols(), CV_16UC1, cv::Scalar(0));
+            //   cv::Mat maskMat(mask.rows(), mask.cols(), CV_8UC1, cv::Scalar(0));
+            //   for (int r = 0; r < intensity.rows(); ++r) {
+            //     for (int c = 0; c < intensity.cols(); ++c) {
+            //       intensityMat.at<uint16_t>(r, c) = intensity(r, c);
+            //     }
+            //   }
+            //   for (int r = 0; r < mask.rows(); ++r) {
+            //     for (int c = 0; c < mask.cols(); ++c) {
+            //       if (mask(r, c) > 0) {
+            //         maskMat.at<uint8_t>(r, c) = 255;
+            //       } else {
+            //         maskMat.at<uint8_t>(r, c) = 0;
+            //       }
+            //     }
+            //   }
+            //
+            //   // cout << "segment_view pose = " << endl << segment_view.T_w_linkpose.getTransformationMatrix() << endl;
+            //   // cout << "vis_view pose = " << endl << vis_view.getPose().T_w.getTransformationMatrix() << endl;
+            //   // cout << "intensity.maxCoeff() = " << intensity.maxCoeff() << endl;
+            //
+            //   cv::imshow("intensity", intensityMat*40.0);
+            //   cv::imshow("mask", maskMat);
+            //
+            //   cv::waitKey(50);
+            // }
             {
               // ROS_INFO_STREAM("Publishing message");
               static constexpr double int_scale = 0.2;

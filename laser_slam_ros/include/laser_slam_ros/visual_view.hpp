@@ -5,6 +5,8 @@
 #ifndef LASER_SLAM_ROS_VISUAL_VIEW_HPP
 #define LASER_SLAM_ROS_VISUAL_VIEW_HPP
 
+#include <array>
+
 #include <Eigen/Dense>
 
 #include <laser_slam/common.hpp>
@@ -47,14 +49,23 @@ public:
   }
 
 private:
+  float getHorAngle(const float &x, const float &y, const float &z) const;
+  float getVertAngle(const float &x, const float &y, const float &z) const;
+
   int getHorCoord(const float &x, const float &y, const float &z) const;
   int getVertCoord(const float &x, const float &y, const float &z) const;
+
+  std::pair<int, int> getClosestDir(const float &x, const float &y, const float &z) const;
 
   // TODO move to params or detect
   static constexpr int horRes = 1024;
   static constexpr int vertRes = 64;
-  static constexpr float vertRange = 45.0 * M_PI / 180.0;
+  // static constexpr float vertRange = 33.222 * M_PI / 180.0;
   static constexpr float rangeThresh = 1.0;
+  static constexpr float occlusionThresh = 1.0;
+  // for OS1 with 1024 horizontal beams
+  std::array<int, 4> pixelOffsets;
+  std::array<float, 64> vertAngles;
 
   laser_slam::Pose pose;
   curves::Time time_ns;
@@ -62,6 +73,8 @@ private:
   Matrix intensity;
   Matrix range;
   MatrixInt count;
+
+  std::array<std::array<Eigen::Vector3f, horRes>, vertRes> dirs;
 };
 
 }
