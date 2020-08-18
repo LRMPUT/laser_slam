@@ -3,6 +3,9 @@ project(laser_slam_ros)
 
 add_definitions(-std=c++11 -DBENCHMARK_ENABLE)
 
+# Boost
+find_package(Boost COMPONENTS)
+
 # OpenCV
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS} )
