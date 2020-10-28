@@ -28,8 +28,15 @@ VisualView::VisualView()
   // LOG(INFO) << "allocated " << ids;
 }
 
-VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pose &ipose)
+VisualView::VisualView(const laser_slam::LaserScan &iscan,
+                       const laser_slam::Pose &ipose,
+                       const int &ihorRes,
+                       const int &ivertRes,
+                       bool iorganized)
   : isCompressed(false),
+    horRes(ihorRes),
+    vertRes(ivertRes),
+    organized(iorganized),
     pixelOffsets{0, 6, 12, 18},
     vertAngles{-15.654, -15.062, -14.497, -13.947, -13.489, -12.908, -12.337, -11.803,
               -11.347, -10.78, -10.224, -9.675, -9.239, -8.664, -8.118, -7.574,
@@ -59,15 +66,16 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pos
         LOG(ERROR) << "No intensity data in laser scan";
     }
     // cout << "iscan.scan.getNbPoints() = " << iscan.scan.getNbPoints() << endl;
-    for (size_t i = 0u; i < iscan.scan.getNbPoints(); ++i) {
-        float x = iscan.scan.features(0,i);
-        float y = iscan.scan.features(1,i);
-        float z = iscan.scan.features(2,i);
+    if (organized) {
+      for (size_t i = 0u; i < iscan.scan.getNbPoints(); ++i) {
+        float x = iscan.scan.features(0, i);
+        float y = iscan.scan.features(1, i);
+        float z = iscan.scan.features(2, i);
 
         float intVal = iscan.scan.descriptors(intDim, i);
-        float rangeVal = std::sqrt(x*x + y*y + z*z);
+        float rangeVal = std::sqrt(x * x + y * y + z * z);
 
-        if(rangeVal > rangeThresh) {
+        if (rangeVal > rangeThresh) {
           int vertCoord = i / horRes;
           int horCoord = (i - pixelOffsets[vertCoord % 4] + horRes) % horRes;
 
@@ -87,6 +95,57 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pos
           count(vertCoord, horCoord) += 1;
           dirs[vertCoord * horRes + horCoord] = Eigen::Vector3f(x, y, z).normalized();
         }
+      }
+    }
+    // do interpolation
+    else {
+      std::vector<std::vector<std::vector<int>>> bins(vertRes,
+                                                     std::vector<std::vector<int>>(horRes, std::vector<int>()));
+      for (size_t i = 0u; i < iscan.scan.getNbPoints(); ++i) {
+        float x = iscan.scan.features(0, i);
+        float y = iscan.scan.features(1, i);
+        float z = iscan.scan.features(2, i);
+
+        float intVal = iscan.scan.descriptors(intDim, i);
+        float rangeVal = std::sqrt(x * x + y * y + z * z);
+
+        if (rangeVal > rangeThresh) {
+          int horCoord = getHorCoordLow(x, y, z);
+          int vertCoord = getVertCoordLow(x, y, z);
+
+          if(horCoord < 0 || horRes <= horCoord || vertCoord < 0 || vertRes <= vertCoord) {
+            bins[vertCoord][horCoord].push_back(i);
+          }
+        }
+      }
+
+      for(int r = 0; r < vertRes; ++r) {
+        for (int c = 0; c < horRes; ++c) {
+          Eigen::Vector3d dir =
+
+          std::vector<int> nhs;
+          nhs.insert(nhs.end(), bins[r][c].begin(), bins[r][c].end());
+          if (r > 0) {
+            nhs.insert(nhs.end(), bins[r - 1][c].begin(), bins[r - 1][c].end());
+          }
+          if (c > 0) {
+            nhs.insert(nhs.end(), bins[r][c - 1].begin(), bins[r][c - 1].end());
+          }
+          if (r > 0 && c > 0) {
+            nhs.insert(nhs.end(), bins[r - 1][c - 1].begin(), bins[r - 1][c - 1].end());
+          }
+
+          std::vector<float> w;
+          float wSum = 0.0f;
+          for (const int &nh : nhs) {
+            float x = iscan.scan.features(0, nh);
+            float y = iscan.scan.features(1, nh);
+            float z = iscan.scan.features(2, nh);
+
+            Eigen::Vector3f dir = Eigen::Vector3f(x, y, z).normalized();
+          }
+        }
+      }
     }
 
     ++ids;
@@ -142,7 +201,8 @@ float VisualView::getVertAngle(const float &x, const float &y, const float &z) c
 int VisualView::getHorCoord(const float &x, const float &y, const float &z) const {
   float horAngle = getHorAngle(x, y, z);
 
-  int horCoord = int(horAngle / (2 * M_PI) * horRes);
+  // round to nearest integer
+  int horCoord = int(horAngle / (2 * M_PI) * horRes + 0.5);
 
   return horCoord;
 }
@@ -161,6 +221,34 @@ int VisualView::getVertCoord(const float &x, const float &y, const float &z) con
 
   return vertCoord;
 }
+
+
+int VisualView::getHorCoordLow(const float &x, const float &y, const float &z) const {
+  float horAngle = getHorAngle(x, y, z);
+
+  // round to nearest integer
+  int horCoord = int(horAngle / (2 * M_PI) * horRes);
+
+  return horCoord;
+}
+
+int VisualView::getVertCoordLow(const float &x, const float &y, const float &z) const {
+  float vertAngle = getVertAngle(x, y, z);
+
+  auto it = std::lower_bound(vertAngles.begin(), vertAngles.end(), vertAngle * 180.0 / M_PI);
+
+  // int vertCoord = int((vertRange / 2.0 - vertAngle) / vertRange * (vertRes - 1));
+  int vertCoord = vertAngles.end() - it - 1;
+
+  return vertCoord;
+}
+
+Eigen::Vector3f VisualView::getDir(const int &r, const int &c) {
+  float horAngle = c * 2 * M_PI / horRes;
+  float vertAngle = vertAngles[r];
+  
+}
+
 
 std::pair<int, int> VisualView::getClosestDir(const float &x, const float &y, const float &z,
                                               const int &r1,

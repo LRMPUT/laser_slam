@@ -37,6 +37,8 @@ class IncrementalEstimator {
 
   std::vector<std::shared_ptr<LaserTrack> > getAllLaserTracks();
 
+  PointMatcher::ICP &getIcp() { return icp_; };
+
   // Build the factor graph and estimate the trajectory.
   gtsam::Values estimate(const gtsam::NonlinearFactorGraph& new_factors,
                          const gtsam::Values& new_values,

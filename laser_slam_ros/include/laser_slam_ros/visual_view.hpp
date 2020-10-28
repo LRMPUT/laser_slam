@@ -22,7 +22,11 @@ public:
 
   VisualView();
 
-  VisualView(const laser_slam::LaserScan &iscan, const laser_slam::Pose &ipose);
+  VisualView(const laser_slam::LaserScan &iscan,
+             const laser_slam::Pose &ipose,
+             const int &ihorRes = 1024,
+             const int &ivertRes = 64,
+             bool iorganized = true);
 
   // VisualView(VisualView &&other);
   // VisualView(const VisualView &other);
@@ -64,6 +68,11 @@ private:
   int getHorCoord(const float &x, const float &y, const float &z) const;
   int getVertCoord(const float &x, const float &y, const float &z) const;
 
+  int getHorCoordLow(const float &x, const float &y, const float &z) const;
+  int getVertCoordLow(const float &x, const float &y, const float &z) const;
+
+  Eigen::Vector3f getDir(const int &r, const int &c);
+
   std::pair<int, int> getClosestDir(const float &x, const float &y, const float &z,
                                     const int &r1,
                                     const int &c1,
@@ -73,9 +82,10 @@ private:
   std::vector<uint8_t> compressData(const std::vector<uint8_t> &data);
   std::vector<uint8_t> decompressData(const std::vector<uint8_t> &dataComp);
 
-  // TODO move to params or detect
-  static constexpr int horRes = 1024;
-  static constexpr int vertRes = 64;
+  bool organized;
+
+  int horRes = 1024;
+  int vertRes = 64;
   // static constexpr float vertRange = 33.222 * M_PI / 180.0;
   static constexpr float rangeThresh = 1.0;
   static constexpr float occlusionThresh = 1.0;

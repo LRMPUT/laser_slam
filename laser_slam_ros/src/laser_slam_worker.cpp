@@ -110,6 +110,19 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
       tf::StampedTransform tf_transform;
       tf_listener_.lookupTransform(params_.odom_frame, params_.sensor_frame,
                                    cloud_msg_in.header.stamp, tf_transform);
+      // ROS_INFO_STREAM("cloud_msg_in.size() = " << cloud_msg_in.width);
+      // hack for loam results
+      {
+        tf::Matrix3x3 Rm_f(0, -1, 0,
+                        0, 0, 1,
+                        -1, 0, 0);
+        tf::Transform Rt_f(Rm_f);
+        tf_transform.setData(Rt_f.inverse() * tf_transform * Rt_f);
+
+        // ROS_INFO_STREAM("tf_transform = (" << tf_transform.getOrigin().x() << ", "
+        //                                         << tf_transform.getOrigin().y() << ", "
+        //                                         << tf_transform.getOrigin().z() << ")");
+      }
 
       bool process_scan = false;
       SE3 current_pose;
@@ -132,6 +145,20 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
         LaserScan new_scan;
         new_scan.scan = PointMatcher_ros::rosMsgToPointMatcherCloud<float>(cloud_msg_in);
         new_scan.time_ns = rosTimeToCurveTime(cloud_msg_in.header.stamp.toNSec());
+
+        // ROS_INFO_STREAM("new_scan.scan.getNbPoints() = " << new_scan.scan.getNbPoints());
+        // hack for loam results
+        {
+          for (size_t i = 0u; i < new_scan.scan.getNbPoints(); ++i) {
+            float x = new_scan.scan.features(0, i);
+            float y = new_scan.scan.features(1, i);
+            float z = new_scan.scan.features(2, i);
+
+            new_scan.scan.features(0, i) = -z;
+            new_scan.scan.features(1, i) = -x;
+            new_scan.scan.features(2, i) = y;
+          }
+        }
 
         // Process the new scan and get new values and factors.
         gtsam::NonlinearFactorGraph new_factors;
@@ -203,6 +230,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
         // Get the last cloud in world frame.
         DataPoints new_fixed_cloud;
         laser_track_->getLocalCloudInWorldFrame(laser_track_->getMaxTime(), &new_fixed_cloud);
+        // ROS_INFO_STREAM("new_fixed_cloud.size() = " << new_fixed_cloud.getNbPoints());
 
         // Transform the cloud in sensor frame
         //TODO(Renaud) move to a transformPointCloud() fct.
@@ -239,6 +267,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
           new_fixed_cloud_no_ground.height = new_fixed_cloud_no_ground.points.size();
           new_fixed_cloud_pcl = new_fixed_cloud_no_ground;
         }
+        // ROS_INFO_STREAM("new_fixed_cloud_pcl.size() = " << new_fixed_cloud_pcl.size());
 
         // Add the local scans to the full point cloud.
         if (params_.create_filtered_map) {
@@ -250,69 +279,71 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
               local_map_ = new_fixed_cloud_pcl;
             }
             local_map_queue_.push_back(new_fixed_cloud_pcl);
-            // ROS_INFO_STREAM("Emplacing new vis view");
-            local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
-            // {
-            //   const laser_slam_ros::VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
-            //   const laser_slam_ros::VisualView::MatrixInt &mask = local_map_vis_view_queue_.back().getMask(new_fixed_cloud_pcl);
-            //
-            //   cv::Mat intensityMat(intensity.rows(), intensity.cols(), CV_16UC1, cv::Scalar(0));
-            //   cv::Mat maskMat(mask.rows(), mask.cols(), CV_8UC1, cv::Scalar(0));
-            //   for (int r = 0; r < intensity.rows(); ++r) {
-            //     for (int c = 0; c < intensity.cols(); ++c) {
-            //       intensityMat.at<uint16_t>(r, c) = intensity(r, c);
-            //     }
-            //   }
-            //   for (int r = 0; r < mask.rows(); ++r) {
-            //     for (int c = 0; c < mask.cols(); ++c) {
-            //       if (mask(r, c) > 0) {
-            //         maskMat.at<uint8_t>(r, c) = 255;
-            //       } else {
-            //         maskMat.at<uint8_t>(r, c) = 0;
-            //       }
-            //     }
-            //   }
-            //
-            //   // cout << "segment_view pose = " << endl << segment_view.T_w_linkpose.getTransformationMatrix() << endl;
-            //   // cout << "vis_view pose = " << endl << vis_view.getPose().T_w.getTransformationMatrix() << endl;
-            //   // cout << "intensity.maxCoeff() = " << intensity.maxCoeff() << endl;
-            //
-            //   cv::imshow("intensity", intensityMat*40.0);
-            //   cv::imshow("mask", maskMat);
-            //
-            //   cv::waitKey(50);
-            // }
-            {
-              // ROS_INFO_STREAM("Publishing message");
-              static constexpr double int_scale = 0.2;
+            if(params_.add_vis_views) {
+              // ROS_INFO_STREAM("Emplacing new vis view");
+              local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
+              // {
+              //   const laser_slam_ros::VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
+              //   const laser_slam_ros::VisualView::MatrixInt &mask = local_map_vis_view_queue_.back().getMask(new_fixed_cloud_pcl);
+              //
+              //   cv::Mat intensityMat(intensity.rows(), intensity.cols(), CV_16UC1, cv::Scalar(0));
+              //   cv::Mat maskMat(mask.rows(), mask.cols(), CV_8UC1, cv::Scalar(0));
+              //   for (int r = 0; r < intensity.rows(); ++r) {
+              //     for (int c = 0; c < intensity.cols(); ++c) {
+              //       intensityMat.at<uint16_t>(r, c) = intensity(r, c);
+              //     }
+              //   }
+              //   for (int r = 0; r < mask.rows(); ++r) {
+              //     for (int c = 0; c < mask.cols(); ++c) {
+              //       if (mask(r, c) > 0) {
+              //         maskMat.at<uint8_t>(r, c) = 255;
+              //       } else {
+              //         maskMat.at<uint8_t>(r, c) = 0;
+              //       }
+              //     }
+              //   }
+              //
+              //   // cout << "segment_view pose = " << endl << segment_view.T_w_linkpose.getTransformationMatrix() << endl;
+              //   // cout << "vis_view pose = " << endl << vis_view.getPose().T_w.getTransformationMatrix() << endl;
+              //   // cout << "intensity.maxCoeff() = " << intensity.maxCoeff() << endl;
+              //
+              //   cv::imshow("intensity", intensityMat*40.0);
+              //   cv::imshow("mask", maskMat);
+              //
+              //   cv::waitKey(50);
+              // }
+              {
+                // ROS_INFO_STREAM("Publishing message");
+                static constexpr double int_scale = 0.2;
 
-              const VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
-              const VisualView::Matrix &range = local_map_vis_view_queue_.back().getRange();
-              const VisualView::MatrixInt &count = local_map_vis_view_queue_.back().getCount();
+                const VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
+                const VisualView::Matrix &range = local_map_vis_view_queue_.back().getRange();
+                const VisualView::MatrixInt &count = local_map_vis_view_queue_.back().getCount();
 
-              static int seq = 0;
+                static int seq = 0;
 
-              sensor_msgs::Image vis_view_msg;
-              vis_view_msg.header.frame_id = "ouster";
-              vis_view_msg.header.seq = seq++;
-              vis_view_msg.header.stamp = ros::Time::now();
+                sensor_msgs::Image vis_view_msg;
+                vis_view_msg.header.frame_id = "ouster";
+                vis_view_msg.header.seq = seq++;
+                vis_view_msg.header.stamp = ros::Time::now();
 
-              vis_view_msg.height = intensity.rows();
-              vis_view_msg.width = intensity.cols();
-              vis_view_msg.encoding = "mono8";
-              vis_view_msg.is_bigendian = false;
-              // 16 bits = 2 bytes
-              vis_view_msg.step = intensity.cols();
-              vis_view_msg.data.resize(intensity.rows() * intensity.cols());
-              // ROS_INFO_STREAM("Writing data, max value = " << intensity.maxCoeff());
-              for(int r = 0; r < intensity.rows(); ++r) {
-                for(int c = 0; c < intensity.cols(); ++c) {
-                  reinterpret_cast<uint8_t*>(vis_view_msg.data.data())[r * intensity.cols() + c] =
-                      (uint8_t)std::min(intensity(r, c) * int_scale, 255.0);
+                vis_view_msg.height = intensity.rows();
+                vis_view_msg.width = intensity.cols();
+                vis_view_msg.encoding = "mono8";
+                vis_view_msg.is_bigendian = false;
+                // 16 bits = 2 bytes
+                vis_view_msg.step = intensity.cols();
+                vis_view_msg.data.resize(intensity.rows() * intensity.cols());
+                // ROS_INFO_STREAM("Writing data, max value = " << intensity.maxCoeff());
+                for (int r = 0; r < intensity.rows(); ++r) {
+                  for (int c = 0; c < intensity.cols(); ++c) {
+                    reinterpret_cast<uint8_t *>(vis_view_msg.data.data())[r * intensity.cols() + c] =
+                        (uint8_t) std::min(intensity(r, c) * int_scale, 255.0);
+                  }
                 }
-              }
 
-              vis_view_pub_.publish(vis_view_msg);
+                vis_view_pub_.publish(vis_view_msg);
+              }
             }
           }
         }

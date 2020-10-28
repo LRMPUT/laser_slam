@@ -86,6 +86,8 @@ void IncrementalEstimator::processLoopClosure(const RelativePose& loop_closure) 
   SE3 a_T_a_b = T_w_a.inverse() * w_T_a_b * T_w_b;
   updated_loop_closure.T_a_b = a_T_a_b;
 
+  LOG(INFO) << "updated_loop_closure = \n" << updated_loop_closure.T_a_b.getTransformationMatrix();
+
   // Apply an ICP step if desired.
   if (params_.do_icp_step_on_loop_closures) {
     // Get the initial guess.
@@ -257,9 +259,13 @@ Values IncrementalEstimator::estimateAndRemove(
   }
   isam2_.update(new_factors_to_add, new_values, factor_indices_to_remove).print();
 
+//  isam2_.getFactorsUnsafe().printErrors(isam2_.calculateEstimate());
+
   // TODO Investigate why these two subsequent update calls are needed.
   isam2_.update();
   isam2_.update();
+
+//  isam2_.getFactorsUnsafe().printErrors(isam2_.calculateEstimate());
 
   Values result(isam2_.calculateEstimate());
   return result;

@@ -76,18 +76,18 @@ class LaserSlamWorker {
 
   bool exportTrajectoryServiceCall(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
 
+  // Standardize the time so that the trajectory starts at time 0.
+  laser_slam::Time rosTimeToCurveTime(const laser_slam::Time& timestamp_ns);
+
+  // Convert time from trajectory base back to ROS base.
+  laser_slam::Time curveTimeToRosTime(const laser_slam::Time& timestamp_ns) const;
+
  private:
   // Convert a tf::StampedTransform to a laser_slam::Pose.
   laser_slam::Pose tfTransformToPose(const tf::StampedTransform& tf_transform);
   // TODO: common.hpp?
   laser_slam::SE3 geometryMsgTransformToSE3(const geometry_msgs::Transform& transform);
   geometry_msgs::Transform SE3ToGeometryMsgTransform(const laser_slam::SE3& transform);
-
-  // Standardize the time so that the trajectory starts at time 0.
-  laser_slam::Time rosTimeToCurveTime(const laser_slam::Time& timestamp_ns);
-
-  // Convert time from trajectory base back to ROS base.
-  laser_slam::Time curveTimeToRosTime(const laser_slam::Time& timestamp_ns) const;
 
   // TODO(renaud) : using ros::Time(0) means "use the latest available transform". Might solve your problem in relocalizer?
   bool getTransform(const std::string& first_frame,

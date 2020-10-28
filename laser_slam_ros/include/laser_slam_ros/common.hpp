@@ -52,6 +52,9 @@ struct LaserSlamWorkerParams {
   bool publish_full_map;
   bool publish_distant_map;
   double map_publication_rate_hz;
+
+  // Visual views
+  bool add_vis_views;
 }; // struct LaserSlamWorkerParams
 
 static LaserSlamWorkerParams getLaserSlamWorkerParams(const ros::NodeHandle& nh,
@@ -88,6 +91,8 @@ static LaserSlamWorkerParams getLaserSlamWorkerParams(const ros::NodeHandle& nh,
   nh.getParam(ns + "/local_map_pub_topic", params.local_map_pub_topic);
   nh.getParam(ns + "/distant_map_pub_topic", params.distant_map_pub_topic);
   nh.getParam(ns + "/get_laser_track_srv_topic", params.get_laser_track_srv_topic);
+
+  nh.getParam(ns + "/add_vis_views", params.add_vis_views);
 
   return params;
 }

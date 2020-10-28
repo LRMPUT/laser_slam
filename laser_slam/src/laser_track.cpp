@@ -205,6 +205,10 @@ void LaserTrack::processPoseAndLaserScan(const Pose& pose, const LaserScan& in_s
       computeICPTransformations();
     }
 
+    // LOG(INFO) << "Scan points = " << scan.scan.getNbPoints();
+    // LOG(INFO) << "Odometry meas = \n" << relative_measurement.T_a_b.getTransformationMatrix();
+    // LOG(INFO) << "ICP meas = \n" << icp_transformations_[icp_transformations_.size()-1u].T_a_b.getTransformationMatrix();
+
     scan_matching_clock.takeTime();
     scan_matching_times_.emplace(scan.time_ns, scan_matching_clock.getRealTime());
 
