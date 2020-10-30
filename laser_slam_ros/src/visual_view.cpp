@@ -15,6 +15,7 @@
 
 #include "laser_slam_ros/visual_view.hpp"
 
+#define PRINT(x) std::cout << #x << " = " << x << std::endl
 
 using std::cout;
 using std::endl;
@@ -38,14 +39,30 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
     vertRes(ivertRes),
     organized(iorganized),
     pixelOffsets{0, 6, 12, 18},
-    vertAngles{-15.654, -15.062, -14.497, -13.947, -13.489, -12.908, -12.337, -11.803,
-              -11.347, -10.78, -10.224, -9.675, -9.239, -8.664, -8.118, -7.574,
-              -7.131, -6.575, -6.019, -5.47, -5.037, -4.478, -3.921, -3.382,
-              -2.938, -2.274, -1.84, -1.282, -0.842, -0.29, 0.262, 0.805,
-              1.246, 1.799, 2.346, 2.894, 3.338, 3.891, 4.442, 4.989,
-              5.443, 5.977, 6.535, 7.079, 7.54, 8.086, 8.63, 9.189,
-              9.633, 10.182, 10.734, 11.309, 11.751, 12.305, 12.852, 13.442,
-              13.91, 14.444, 15.012, 15.615, 16.073, 16.629, 17.217, 17.84}
+    // vertAngles{-15.654, -15.062, -14.497, -13.947, -13.489, -12.908, -12.337, -11.803,
+    //           -11.347, -10.78, -10.224, -9.675, -9.239, -8.664, -8.118, -7.574,
+    //           -7.131, -6.575, -6.019, -5.47, -5.037, -4.478, -3.921, -3.382,
+    //           -2.938, -2.274, -1.84, -1.282, -0.842, -0.29, 0.262, 0.805,
+    //           1.246, 1.799, 2.346, 2.894, 3.338, 3.891, 4.442, 4.989,
+    //           5.443, 5.977, 6.535, 7.079, 7.54, 8.086, 8.63, 9.189,
+    //           9.633, 10.182, 10.734, 11.309, 11.751, 12.305, 12.852, 13.442,
+    //           13.91, 14.444, 15.012, 15.615, 16.073, 16.629, 17.217, 17.84}
+    vertAngles{-24.8       , -24.37460317, -23.94920635, -23.52380952,
+               -23.0984127 , -22.67301587, -22.24761905, -21.82222222,
+               -21.3968254 , -20.97142857, -20.54603175, -20.12063492,
+               -19.6952381 , -19.26984127, -18.84444444, -18.41904762,
+               -17.99365079, -17.56825397, -17.14285714, -16.71746032,
+               -16.29206349, -15.86666667, -15.44126984, -15.01587302,
+               -14.59047619, -14.16507937, -13.73968254, -13.31428571,
+               -12.88888889, -12.46349206, -12.03809524, -11.61269841,
+               -11.18730159, -10.76190476, -10.33650794,  -9.91111111,
+               -9.48571429,  -9.06031746,  -8.63492063,  -8.20952381,
+               -7.78412698,  -7.35873016,  -6.93333333,  -6.50793651,
+               -6.08253968,  -5.65714286,  -5.23174603,  -4.80634921,
+               -4.38095238,  -3.95555556,  -3.53015873,  -3.1047619 ,
+               -2.67936508,  -2.25396825,  -1.82857143,  -1.4031746 ,
+               -0.97777778,  -0.55238095,  -0.12698413,   0.2984127 ,
+               0.72380952,   1.14920635,   1.57460317,   2.        }
 {
     pose = ipose;
     time_ns = iscan.time_ns;
@@ -99,6 +116,8 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
     }
     // do interpolation
     else {
+      std::cout << "interpolating intensity image" << std::endl;
+      std::cout << "binning" << std::endl;
       std::vector<std::vector<std::vector<int>>> bins(vertRes,
                                                      std::vector<std::vector<int>>(horRes, std::vector<int>()));
       for (size_t i = 0u; i < iscan.scan.getNbPoints(); ++i) {
@@ -113,37 +132,114 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
           int horCoord = getHorCoordLow(x, y, z);
           int vertCoord = getVertCoordLow(x, y, z);
 
-          if(horCoord < 0 || horRes <= horCoord || vertCoord < 0 || vertRes <= vertCoord) {
+          if(0 <= horCoord && horCoord < horRes && 0 <= vertCoord && vertCoord < vertRes) {
+            // std::cout << "adding to bin (" << vertCoord << ", " << horCoord << ")" << std::endl;
             bins[vertCoord][horCoord].push_back(i);
           }
         }
       }
 
+      std::cout << "interpolating" << std::endl;
       for(int r = 0; r < vertRes; ++r) {
         for (int c = 0; c < horRes; ++c) {
-          Eigen::Vector3d dir =
+      // for(int r = 0; r < 1; ++r) {
+      //   for (int c = 0; c < 1; ++c) {
+          // PRINT(r);
+          // PRINT(c);
+          Eigen::Vector3f dir = getDir(r, c);
+          float horAngle = getHorAngle(dir(0), dir(1), dir(2));
+          float vertAngle = getVertAngle(dir(0), dir(1), dir(2));
+          // PRINT(dir.transpose());
+          // PRINT(horAngle);
+          // PRINT(vertAngle);
 
-          std::vector<int> nhs;
-          nhs.insert(nhs.end(), bins[r][c].begin(), bins[r][c].end());
+          int nh00 = getClosest(iscan, bins[r][c], dir);
+          int nh10 = -1;
           if (r > 0) {
-            nhs.insert(nhs.end(), bins[r - 1][c].begin(), bins[r - 1][c].end());
+            nh10 = getClosest(iscan, bins[r - 1][c], dir);
           }
+          int nh01 = -1;
           if (c > 0) {
-            nhs.insert(nhs.end(), bins[r][c - 1].begin(), bins[r][c - 1].end());
+            nh01 = getClosest(iscan, bins[r][c - 1], dir);
           }
+          int nh11 = -1;
           if (r > 0 && c > 0) {
-            nhs.insert(nhs.end(), bins[r - 1][c - 1].begin(), bins[r - 1][c - 1].end());
+            nh11 = getClosest(iscan, bins[r - 1][c - 1], dir);
           }
 
-          std::vector<float> w;
-          float wSum = 0.0f;
-          for (const int &nh : nhs) {
-            float x = iscan.scan.features(0, nh);
-            float y = iscan.scan.features(1, nh);
-            float z = iscan.scan.features(2, nh);
+          // PRINT(nh00);
+          // PRINT(nh10);
+          // PRINT(nh01);
+          // PRINT(nh11);
+          Eigen::Vector4f pt = Eigen::Vector4f::Zero();
+          if (nh00 >= 0 && nh10 >= 0 && nh01 >= 0 && nh11 >= 0) {
+            Eigen::Vector4f pt00 = getPoint(iscan, nh00, intDim);
+            Eigen::Vector4f pt10 = getPoint(iscan, nh10, intDim);
+            Eigen::Vector4f pt01 = getPoint(iscan, nh01, intDim);
+            Eigen::Vector4f pt11 = getPoint(iscan, nh11, intDim);
 
-            Eigen::Vector3f dir = Eigen::Vector3f(x, y, z).normalized();
+            // PRINT(pt00.transpose());
+            // PRINT(pt10.transpose());
+            // PRINT(pt01.transpose());
+            // PRINT(pt11.transpose());
+            // first interpolate horizontally
+            Eigen::Vector4f pt0 = interpolateHor(pt01, pt00, horAngle);
+            Eigen::Vector4f pt1 = interpolateHor(pt11, pt10, horAngle);
+            // then vertically
+            pt = interpolateVert(pt0, pt1, vertAngle);
+
           }
+          else if (nh00 >= 0 && nh10 >= 0) {
+            Eigen::Vector4f pt00 = getPoint(iscan, nh00, intDim);
+            Eigen::Vector4f pt10 = getPoint(iscan, nh10, intDim);
+
+            // PRINT(pt00.transpose());
+            // PRINT(pt10.transpose());
+            pt = interpolateVert(pt00, pt10, vertAngle);
+          }
+          else if (nh01 >= 0 && nh11 >= 0) {
+            Eigen::Vector4f pt01 = getPoint(iscan, nh01, intDim);
+            Eigen::Vector4f pt11 = getPoint(iscan, nh11, intDim);
+
+            // PRINT(pt01.transpose());
+            // PRINT(pt11.transpose());
+            // interpolate vertically
+            pt = interpolateVert(pt01, pt11, vertAngle);
+          }
+          else if (nh00 >= 0 && nh01 >= 0) {
+            Eigen::Vector4f pt00 = getPoint(iscan, nh00, intDim);
+            Eigen::Vector4f pt01 = getPoint(iscan, nh01, intDim);
+
+            // PRINT(pt00.transpose());
+            // PRINT(pt01.transpose());
+            // interpolate horizontally
+            pt = interpolateHor(pt01, pt00, vertAngle);
+          }
+          else if (nh10 >= 0 && nh11 >= 0) {
+            Eigen::Vector4f pt10 = getPoint(iscan, nh10, intDim);
+            Eigen::Vector4f pt11 = getPoint(iscan, nh11, intDim);
+
+            // PRINT(pt10.transpose());
+            // PRINT(pt11.transpose());
+            // interpolate horizontally
+            pt = interpolateHor(pt11, pt10, vertAngle);
+          }
+          else {
+            // chose the closest
+            int nh = getClosest(iscan, std::vector<int>{nh00, nh10, nh01, nh11}, dir);
+            if (nh >= 0) {
+              pt = getPoint(iscan, nh, intDim);
+            }
+          }
+          // PRINT(pt.transpose());
+          if (pt != Eigen::Vector4f::Zero()) {
+            intensity(r, c) = pt(3);
+            range(r, c) = pt.head<3>().norm();
+            dirs[r * horRes + c] = pt.head<3>().normalized();
+            count(r, c) += 1;
+          }
+          char a;
+          std::cin >> a;
         }
       }
     }
@@ -243,10 +339,80 @@ int VisualView::getVertCoordLow(const float &x, const float &y, const float &z) 
   return vertCoord;
 }
 
-Eigen::Vector3f VisualView::getDir(const int &r, const int &c) {
+Eigen::Vector3f VisualView::getDir(const int &r, const int &c) const {
   float horAngle = c * 2 * M_PI / horRes;
-  float vertAngle = vertAngles[r];
-  
+  float vertAngle = vertAngles[vertAngles.size() - r - 1];
+
+  Eigen::Quaternionf q = Eigen::AngleAxisf(horAngle, Eigen::Vector3f::UnitZ())
+                        * Eigen::AngleAxisf(vertAngle, Eigen::Vector3f::UnitY());
+  Eigen::Vector3f dir = q * Eigen::Vector3f::UnitX();
+  return dir;
+}
+
+int VisualView::getClosest(const laser_slam::LaserScan &scan,
+                           const std::vector<int> &nhs,
+                           const Eigen::Vector3f &dir) const {
+  int bestNh = -1;
+  float bestW = 0.0f;
+  for (const int &nh : nhs) {
+    if (nh >= 0) {
+      float x = scan.scan.features(0, nh);
+      float y = scan.scan.features(1, nh);
+      float z = scan.scan.features(2, nh);
+
+      Eigen::Vector3f nhDir = Eigen::Vector3f(x, y, z).normalized();
+      float curW = dir.dot(nhDir);
+      if (curW > bestW) {
+        bestNh = nh;
+        bestW = curW;
+      }
+    }
+  }
+  return bestNh;
+}
+
+Eigen::Vector4f VisualView::getPoint(const laser_slam::LaserScan &scan, const int &idx, const int &intDim) const {
+  return Eigen::Vector4f(scan.scan.features(0, idx),
+                        scan.scan.features(1, idx),
+                        scan.scan.features(2, idx),
+                        scan.scan.descriptors(intDim, idx));
+}
+
+
+Eigen::Vector4f VisualView::interpolateVert(const Eigen::Vector4f &pt1,
+                                            const Eigen::Vector4f &pt2,
+                                            const float &vertAngle) const {
+  float pt1ang = getVertAngle(pt1(0), pt1(1), pt1(2));
+  float pt2ang = getVertAngle(pt2(0), pt2(1), pt2(2));
+  float w2 = (pt1ang - vertAngle) / (pt2ang - pt1ang);
+  float w1 = (pt2ang - vertAngle) / (pt2ang - pt1ang);
+
+  if (abs(w1 + w2 - 1.0f) > 1e-5) {
+    std::cout << "abs(w1 + w2 - 1.0f) > 1e-5" << std::endl;
+  }
+  if (vertAngle < pt1ang || pt2ang < vertAngle) {
+    std::cout << "vertAngle < pt1ang || pt2ang < vertAngle" << std::endl;
+  }
+
+  return (w1 * pt1 + w2 * pt2);
+}
+
+Eigen::Vector4f VisualView::interpolateHor(const Eigen::Vector4f &pt1,
+                                           const Eigen::Vector4f &pt2,
+                                           const float &horAngle) const {
+  float pt1ang = getHorAngle(pt1(0), pt1(1), pt1(2));
+  float pt2ang = getHorAngle(pt2(0), pt2(1), pt2(2));
+  float w2 = (pt1ang - horAngle) / (pt2ang - pt1ang);
+  float w1 = (pt2ang - horAngle) / (pt2ang - pt1ang);
+
+  if (abs(w1 + w2 - 1.0f) > 1e-5) {
+    std::cout << "abs(w1 + w2 - 1.0f) > 1e-5" << std::endl;
+  }
+  if (horAngle < pt1ang || pt2ang < horAngle) {
+    std::cout << "horAngle < pt1ang || pt2ang < horAngle" << std::endl;
+  }
+
+  return (w1 * pt1 + w2 * pt2);
 }
 
 

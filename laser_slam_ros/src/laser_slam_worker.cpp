@@ -112,7 +112,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
                                    cloud_msg_in.header.stamp, tf_transform);
       // ROS_INFO_STREAM("cloud_msg_in.size() = " << cloud_msg_in.width);
       // hack for loam results
-      {
+      if (params_.loam_transform) {
         tf::Matrix3x3 Rm_f(0, -1, 0,
                         0, 0, 1,
                         -1, 0, 0);
@@ -148,7 +148,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
 
         // ROS_INFO_STREAM("new_scan.scan.getNbPoints() = " << new_scan.scan.getNbPoints());
         // hack for loam results
-        {
+        if (params_.loam_transform) {
           for (size_t i = 0u; i < new_scan.scan.getNbPoints(); ++i) {
             float x = new_scan.scan.features(0, i);
             float y = new_scan.scan.features(1, i);
@@ -281,7 +281,8 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
             local_map_queue_.push_back(new_fixed_cloud_pcl);
             if(params_.add_vis_views) {
               // ROS_INFO_STREAM("Emplacing new vis view");
-              local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
+              // local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
+              local_map_vis_view_queue_.emplace_back(new_scan, current_pose, 2048, 64, false);
               // {
               //   const laser_slam_ros::VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
               //   const laser_slam_ros::VisualView::MatrixInt &mask = local_map_vis_view_queue_.back().getMask(new_fixed_cloud_pcl);

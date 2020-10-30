@@ -71,7 +71,21 @@ private:
   int getHorCoordLow(const float &x, const float &y, const float &z) const;
   int getVertCoordLow(const float &x, const float &y, const float &z) const;
 
-  Eigen::Vector3f getDir(const int &r, const int &c);
+  Eigen::Vector3f getDir(const int &r, const int &c) const;
+
+  int getClosest(const laser_slam::LaserScan &scan,
+                  const std::vector<int> &nhs,
+                  const Eigen::Vector3f &dir) const;
+
+  Eigen::Vector4f getPoint(const laser_slam::LaserScan &scan, const int &idx, const int &intDim) const;
+
+  Eigen::Vector4f interpolateVert(const Eigen::Vector4f &pt1,
+                                  const Eigen::Vector4f &pt2,
+                                  const float &vertAngle) const;
+
+  Eigen::Vector4f interpolateHor(const Eigen::Vector4f &pt1,
+                                 const Eigen::Vector4f &pt2,
+                                 const float &horAngle) const;
 
   std::pair<int, int> getClosestDir(const float &x, const float &y, const float &z,
                                     const int &r1,

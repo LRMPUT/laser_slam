@@ -55,6 +55,8 @@ struct LaserSlamWorkerParams {
 
   // Visual views
   bool add_vis_views;
+
+  bool loam_transform;
 }; // struct LaserSlamWorkerParams
 
 static LaserSlamWorkerParams getLaserSlamWorkerParams(const ros::NodeHandle& nh,
@@ -93,6 +95,8 @@ static LaserSlamWorkerParams getLaserSlamWorkerParams(const ros::NodeHandle& nh,
   nh.getParam(ns + "/get_laser_track_srv_topic", params.get_laser_track_srv_topic);
 
   nh.getParam(ns + "/add_vis_views", params.add_vis_views);
+
+  nh.getParam(ns + "/loam_transform", params.loam_transform);
 
   return params;
 }
