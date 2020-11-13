@@ -7,7 +7,7 @@ add_definitions(-std=c++11 -DBENCHMARK_ENABLE)
 find_package(Boost COMPONENTS)
 
 # OpenCV
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core highgui imgcodecs)
 include_directories(${OpenCV_INCLUDE_DIRS} )
 
 find_package(catkin_simple 0.1.0 REQUIRED COMPONENTS

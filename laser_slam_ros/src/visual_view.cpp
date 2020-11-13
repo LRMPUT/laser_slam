@@ -20,10 +20,27 @@
 using std::cout;
 using std::endl;
 
+#include <signal.h>
+#include <termios.h>
+#include <stdio.h>
+int getch()
+{
+  static struct termios oldt, newt;
+  tcgetattr( STDIN_FILENO, &oldt);           // save old settings
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON);                 // disable buffering
+  tcsetattr( STDIN_FILENO, TCSANOW, &newt);  // apply new settings
+
+  int c = getchar();  // read character (non-blocking)
+
+  tcsetattr( STDIN_FILENO, TCSANOW, &oldt);  // restore old settings
+  return c;
+}
+
 namespace laser_slam_ros {
 
 VisualView::VisualView()
-  : isCompressed(false)
+  : isCompressedFlag(false)
 {
   // ++ids;
   // LOG(INFO) << "allocated " << ids;
@@ -34,7 +51,7 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
                        const int &ihorRes,
                        const int &ivertRes,
                        bool iorganized)
-  : isCompressed(false),
+  : isCompressedFlag(false),
     horRes(ihorRes),
     vertRes(ivertRes),
     organized(iorganized),
@@ -116,8 +133,8 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
     }
     // do interpolation
     else {
-      std::cout << "interpolating intensity image" << std::endl;
-      std::cout << "binning" << std::endl;
+      // std::cout << "interpolating intensity image" << std::endl;
+      // std::cout << "binning" << std::endl;
       std::vector<std::vector<std::vector<int>>> bins(vertRes,
                                                      std::vector<std::vector<int>>(horRes, std::vector<int>()));
       for (size_t i = 0u; i < iscan.scan.getNbPoints(); ++i) {
@@ -139,11 +156,9 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
         }
       }
 
-      std::cout << "interpolating" << std::endl;
+      // std::cout << "interpolating" << std::endl;
       for(int r = 0; r < vertRes; ++r) {
         for (int c = 0; c < horRes; ++c) {
-      // for(int r = 0; r < 1; ++r) {
-      //   for (int c = 0; c < 1; ++c) {
           // PRINT(r);
           // PRINT(c);
           Eigen::Vector3f dir = getDir(r, c);
@@ -158,13 +173,11 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
           if (r > 0) {
             nh10 = getClosest(iscan, bins[r - 1][c], dir);
           }
-          int nh01 = -1;
-          if (c > 0) {
-            nh01 = getClosest(iscan, bins[r][c - 1], dir);
-          }
+          // there is always a neighboring column
+          int nh01 = getClosest(iscan, bins[r][(c - 1 + horRes) % horRes], dir);
           int nh11 = -1;
-          if (r > 0 && c > 0) {
-            nh11 = getClosest(iscan, bins[r - 1][c - 1], dir);
+          if (r > 0) {
+            nh11 = getClosest(iscan, bins[r - 1][(c - 1 + horRes) % horRes], dir);
           }
 
           // PRINT(nh00);
@@ -178,16 +191,34 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
             Eigen::Vector4f pt01 = getPoint(iscan, nh01, intDim);
             Eigen::Vector4f pt11 = getPoint(iscan, nh11, intDim);
 
-            // PRINT(pt00.transpose());
-            // PRINT(pt10.transpose());
-            // PRINT(pt01.transpose());
-            // PRINT(pt11.transpose());
             // first interpolate horizontally
             Eigen::Vector4f pt0 = interpolateHor(pt01, pt00, horAngle);
             Eigen::Vector4f pt1 = interpolateHor(pt11, pt10, horAngle);
             // then vertically
             pt = interpolateVert(pt0, pt1, vertAngle);
-
+            // {
+            //   PRINT(r);
+            //   PRINT(c);
+            //   PRINT(dir.transpose());
+            //   PRINT(horAngle);
+            //   PRINT(vertAngle);
+            //   PRINT(getHorAngle(pt01(0), pt01(1), pt01(2)));
+            //   PRINT(getHorAngle(pt00(0), pt00(1), pt00(2)));
+            //   PRINT(nh00);
+            //   PRINT(nh10);
+            //   PRINT(nh01);
+            //   PRINT(nh11);
+            //   PRINT(pt00.transpose());
+            //   PRINT(pt10.transpose());
+            //   PRINT(pt01.transpose());
+            //   PRINT(pt11.transpose());
+            //   PRINT(pt0.transpose());
+            //   PRINT(pt1.transpose());
+            //   PRINT(pt.transpose());
+            //   while (getch() != 'n') {
+            //
+            //   }
+            // }
           }
           else if (nh00 >= 0 && nh10 >= 0) {
             Eigen::Vector4f pt00 = getPoint(iscan, nh00, intDim);
@@ -213,7 +244,7 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
             // PRINT(pt00.transpose());
             // PRINT(pt01.transpose());
             // interpolate horizontally
-            pt = interpolateHor(pt01, pt00, vertAngle);
+            pt = interpolateHor(pt01, pt00, horAngle);
           }
           else if (nh10 >= 0 && nh11 >= 0) {
             Eigen::Vector4f pt10 = getPoint(iscan, nh10, intDim);
@@ -222,7 +253,7 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
             // PRINT(pt10.transpose());
             // PRINT(pt11.transpose());
             // interpolate horizontally
-            pt = interpolateHor(pt11, pt10, vertAngle);
+            pt = interpolateHor(pt11, pt10, horAngle);
           }
           else {
             // chose the closest
@@ -238,8 +269,6 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
             dirs[r * horRes + c] = pt.head<3>().normalized();
             count(r, c) += 1;
           }
-          char a;
-          std::cin >> a;
         }
       }
     }
@@ -277,6 +306,17 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
 //   --ids;
 //   // LOG(INFO) << "allocated " << ids;
 // }
+
+float VisualView::angDiff(const float &a1, const float &a2) const {
+  float d = a1 - a2;
+  if (d < -M_PI) {
+    d += 2 * M_PI;
+  }
+  else if(M_PI < d) {
+    d -= 2 * M_PI;
+  }
+  return d;
+}
 
 float VisualView::getHorAngle(const float &x, const float &y, const float &z) const {
   float horAngle = atan2(-y, x);
@@ -341,10 +381,10 @@ int VisualView::getVertCoordLow(const float &x, const float &y, const float &z) 
 
 Eigen::Vector3f VisualView::getDir(const int &r, const int &c) const {
   float horAngle = c * 2 * M_PI / horRes;
-  float vertAngle = vertAngles[vertAngles.size() - r - 1];
+  float vertAngle = vertAngles[vertAngles.size() - r - 1] * M_PI / 180.0;
 
-  Eigen::Quaternionf q = Eigen::AngleAxisf(horAngle, Eigen::Vector3f::UnitZ())
-                        * Eigen::AngleAxisf(vertAngle, Eigen::Vector3f::UnitY());
+  Eigen::Quaternionf q = Eigen::AngleAxisf(-horAngle, Eigen::Vector3f::UnitZ())
+                        * Eigen::AngleAxisf(-vertAngle, Eigen::Vector3f::UnitY());
   Eigen::Vector3f dir = q * Eigen::Vector3f::UnitX();
   return dir;
 }
@@ -384,7 +424,7 @@ Eigen::Vector4f VisualView::interpolateVert(const Eigen::Vector4f &pt1,
                                             const float &vertAngle) const {
   float pt1ang = getVertAngle(pt1(0), pt1(1), pt1(2));
   float pt2ang = getVertAngle(pt2(0), pt2(1), pt2(2));
-  float w2 = (pt1ang - vertAngle) / (pt2ang - pt1ang);
+  float w2 = (vertAngle - pt1ang) / (pt2ang - pt1ang);
   float w1 = (pt2ang - vertAngle) / (pt2ang - pt1ang);
 
   if (abs(w1 + w2 - 1.0f) > 1e-5) {
@@ -394,7 +434,20 @@ Eigen::Vector4f VisualView::interpolateVert(const Eigen::Vector4f &pt1,
     std::cout << "vertAngle < pt1ang || pt2ang < vertAngle" << std::endl;
   }
 
-  return (w1 * pt1 + w2 * pt2);
+  // {
+  //   PRINT(pt1.transpose());
+  //   PRINT(pt2.transpose());
+  //   PRINT(pt1ang);
+  //   PRINT(vertAngle);
+  //   PRINT(pt2ang);
+  //   PRINT(w1);
+  //   PRINT(w2);
+  //   while (getch() != 'm') {
+  //
+  //   }
+  // }
+
+  return (w1 * pt1 + w2 * pt2) / (w1 + w2);
 }
 
 Eigen::Vector4f VisualView::interpolateHor(const Eigen::Vector4f &pt1,
@@ -402,17 +455,30 @@ Eigen::Vector4f VisualView::interpolateHor(const Eigen::Vector4f &pt1,
                                            const float &horAngle) const {
   float pt1ang = getHorAngle(pt1(0), pt1(1), pt1(2));
   float pt2ang = getHorAngle(pt2(0), pt2(1), pt2(2));
-  float w2 = (pt1ang - horAngle) / (pt2ang - pt1ang);
-  float w1 = (pt2ang - horAngle) / (pt2ang - pt1ang);
+  float w2 = angDiff(horAngle, pt1ang) / angDiff(pt2ang, pt1ang);
+  float w1 = angDiff(pt2ang, horAngle) / angDiff(pt2ang, pt1ang);
 
-  if (abs(w1 + w2 - 1.0f) > 1e-5) {
-    std::cout << "abs(w1 + w2 - 1.0f) > 1e-5" << std::endl;
-  }
-  if (horAngle < pt1ang || pt2ang < horAngle) {
-    std::cout << "horAngle < pt1ang || pt2ang < horAngle" << std::endl;
-  }
+  // if (abs(w1 + w2 - 1.0f) > 1e-5 || w1 < 0.0f || w2 < 0.0f) {
+  //   std::cout << "abs(w1 + w2 - 1.0f) > 1e-5 || w1 < 0.0f || w2 < 0.0f" << std::endl;
+  //
+  //   {
+  //     PRINT(pt1.transpose());
+  //     PRINT(pt2.transpose());
+  //     PRINT(pt1ang);
+  //     PRINT(horAngle);
+  //     PRINT(pt2ang);
+  //     PRINT(w1);
+  //     PRINT(w2);
+  //     while (getch() != 'm') {
+  //
+  //     }
+  //   }
+  // }
+  // if (horAngle < pt1ang || pt2ang < horAngle) {
+  //   std::cout << "horAngle < pt1ang || pt2ang < horAngle" << std::endl;
+  // }
 
-  return (w1 * pt1 + w2 * pt2);
+  return (w1 * pt1 + w2 * pt2) / (w1 + w2);
 }
 
 
@@ -548,7 +614,7 @@ void VisualView::compress() {
     dirsComp = compressData(data);
     dirs.clear();
   }
-  isCompressed = true;
+  isCompressedFlag = true;
 }
 
 void VisualView::decompress() {
@@ -576,7 +642,7 @@ void VisualView::decompress() {
     dirsComp.clear();
     // cout << "dirs decompressed" << endl;
   }
-  isCompressed = false;
+  isCompressedFlag = false;
 }
 
 

@@ -282,7 +282,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
             if(params_.add_vis_views) {
               // ROS_INFO_STREAM("Emplacing new vis view");
               // local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
-              local_map_vis_view_queue_.emplace_back(new_scan, current_pose, 2048, 64, false);
+              local_map_vis_view_queue_.emplace_back(new_scan, current_pose, 1024, 64, false);
               // {
               //   const laser_slam_ros::VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
               //   const laser_slam_ros::VisualView::MatrixInt &mask = local_map_vis_view_queue_.back().getMask(new_fixed_cloud_pcl);
@@ -315,7 +315,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
               // }
               {
                 // ROS_INFO_STREAM("Publishing message");
-                static constexpr double int_scale = 0.2;
+                static constexpr double int_scale = 255.0;
 
                 const VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
                 const VisualView::Matrix &range = local_map_vis_view_queue_.back().getRange();

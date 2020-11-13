@@ -61,7 +61,13 @@ public:
 
   void decompress();
 
+  bool isCompressed() const {
+    return isCompressedFlag;
+  }
+
 private:
+  float angDiff(const float &a1, const float &a2) const;
+
   float getHorAngle(const float &x, const float &y, const float &z) const;
   float getVertAngle(const float &x, const float &y, const float &z) const;
 
@@ -117,7 +123,7 @@ private:
 
   std::vector<Eigen::Vector3f> dirs;
 
-  bool isCompressed;
+  bool isCompressedFlag;
   std::vector<uint8_t> intensityComp;
   std::vector<uint8_t> rangeComp;
   std::vector<uint8_t> countComp;
