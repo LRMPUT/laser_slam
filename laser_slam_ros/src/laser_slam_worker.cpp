@@ -37,7 +37,7 @@ using namespace laser_slam;
 using std::cout;
 using std::endl;
 
-LaserSlamWorker::LaserSlamWorker() { }
+LaserSlamWorker::LaserSlamWorker() : posesFile("poses.log") { }
 
 LaserSlamWorker::~LaserSlamWorker() { }
 
@@ -122,6 +122,17 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
         // ROS_INFO_STREAM("tf_transform = (" << tf_transform.getOrigin().x() << ", "
         //                                         << tf_transform.getOrigin().y() << ", "
         //                                         << tf_transform.getOrigin().z() << ")");
+      }
+
+      if (true) {
+        posesFile << cloud_msg_in.header.stamp.toNSec() << " "
+                  << tf_transform.getOrigin().getX() << " "
+                  << tf_transform.getOrigin().getY() << " "
+                  << tf_transform.getOrigin().getZ() << " "
+                  << tf_transform.getRotation().getX() << " "
+                  << tf_transform.getRotation().getY() << " "
+                  << tf_transform.getRotation().getZ() << " "
+                  << tf_transform.getRotation().getW() << std::endl;
       }
 
       bool process_scan = false;
@@ -282,6 +293,7 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
             if(params_.add_vis_views) {
               // ROS_INFO_STREAM("Emplacing new vis view");
               local_map_vis_view_queue_.emplace_back(new_scan, current_pose);
+              // ROS_INFO_STREAM("Emplaced new vis view");
               // local_map_vis_view_queue_.emplace_back(new_scan, current_pose, 1024, 64, false);
               // {
               //   const laser_slam_ros::VisualView::Matrix &intensity = local_map_vis_view_queue_.back().getIntensity();
