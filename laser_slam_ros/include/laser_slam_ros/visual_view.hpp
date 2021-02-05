@@ -33,6 +33,10 @@ public:
 
   // ~VisualView();
 
+  void setPose(const laser_slam::Pose &newPose) {
+    pose = newPose;
+  }
+
   const laser_slam::Pose &getPose() const {
     return pose;
   }

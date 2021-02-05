@@ -124,16 +124,16 @@ void LaserSlamWorker::scanCallback(const sensor_msgs::PointCloud2& cloud_msg_in)
         //                                         << tf_transform.getOrigin().z() << ")");
       }
 
-      if (true) {
-        posesFile << cloud_msg_in.header.stamp.toNSec() << " "
-                  << tf_transform.getOrigin().getX() << " "
-                  << tf_transform.getOrigin().getY() << " "
-                  << tf_transform.getOrigin().getZ() << " "
-                  << tf_transform.getRotation().getX() << " "
-                  << tf_transform.getRotation().getY() << " "
-                  << tf_transform.getRotation().getZ() << " "
-                  << tf_transform.getRotation().getW() << std::endl;
-      }
+      // if (true) {
+      //   posesFile << cloud_msg_in.header.stamp.toNSec() << " "
+      //             << tf_transform.getOrigin().getX() << " "
+      //             << tf_transform.getOrigin().getY() << " "
+      //             << tf_transform.getOrigin().getZ() << " "
+      //             << tf_transform.getRotation().getX() << " "
+      //             << tf_transform.getRotation().getY() << " "
+      //             << tf_transform.getRotation().getZ() << " "
+      //             << tf_transform.getRotation().getW() << std::endl;
+      // }
 
       bool process_scan = false;
       SE3 current_pose;
