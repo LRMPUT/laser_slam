@@ -12,6 +12,8 @@
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
 #include "laser_slam_ros/visual_view.hpp"
 
@@ -56,30 +58,30 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
     vertRes(ivertRes),
     organized(iorganized),
     pixelOffsets{0, 6, 12, 18},
-    // vertAngles{-15.654, -15.062, -14.497, -13.947, -13.489, -12.908, -12.337, -11.803,
-    //           -11.347, -10.78, -10.224, -9.675, -9.239, -8.664, -8.118, -7.574,
-    //           -7.131, -6.575, -6.019, -5.47, -5.037, -4.478, -3.921, -3.382,
-    //           -2.938, -2.274, -1.84, -1.282, -0.842, -0.29, 0.262, 0.805,
-    //           1.246, 1.799, 2.346, 2.894, 3.338, 3.891, 4.442, 4.989,
-    //           5.443, 5.977, 6.535, 7.079, 7.54, 8.086, 8.63, 9.189,
-    //           9.633, 10.182, 10.734, 11.309, 11.751, 12.305, 12.852, 13.442,
-    //           13.91, 14.444, 15.012, 15.615, 16.073, 16.629, 17.217, 17.84}
-    vertAngles{-24.8       , -24.37460317, -23.94920635, -23.52380952,
-               -23.0984127 , -22.67301587, -22.24761905, -21.82222222,
-               -21.3968254 , -20.97142857, -20.54603175, -20.12063492,
-               -19.6952381 , -19.26984127, -18.84444444, -18.41904762,
-               -17.99365079, -17.56825397, -17.14285714, -16.71746032,
-               -16.29206349, -15.86666667, -15.44126984, -15.01587302,
-               -14.59047619, -14.16507937, -13.73968254, -13.31428571,
-               -12.88888889, -12.46349206, -12.03809524, -11.61269841,
-               -11.18730159, -10.76190476, -10.33650794,  -9.91111111,
-               -9.48571429,  -9.06031746,  -8.63492063,  -8.20952381,
-               -7.78412698,  -7.35873016,  -6.93333333,  -6.50793651,
-               -6.08253968,  -5.65714286,  -5.23174603,  -4.80634921,
-               -4.38095238,  -3.95555556,  -3.53015873,  -3.1047619 ,
-               -2.67936508,  -2.25396825,  -1.82857143,  -1.4031746 ,
-               -0.97777778,  -0.55238095,  -0.12698413,   0.2984127 ,
-               0.72380952,   1.14920635,   1.57460317,   2.        }
+    vertAngles{-15.654, -15.062, -14.497, -13.947, -13.489, -12.908, -12.337, -11.803,
+              -11.347, -10.78, -10.224, -9.675, -9.239, -8.664, -8.118, -7.574,
+              -7.131, -6.575, -6.019, -5.47, -5.037, -4.478, -3.921, -3.382,
+              -2.938, -2.274, -1.84, -1.282, -0.842, -0.29, 0.262, 0.805,
+              1.246, 1.799, 2.346, 2.894, 3.338, 3.891, 4.442, 4.989,
+              5.443, 5.977, 6.535, 7.079, 7.54, 8.086, 8.63, 9.189,
+              9.633, 10.182, 10.734, 11.309, 11.751, 12.305, 12.852, 13.442,
+              13.91, 14.444, 15.012, 15.615, 16.073, 16.629, 17.217, 17.84}
+    // vertAngles{-24.8       , -24.37460317, -23.94920635, -23.52380952,
+    //            -23.0984127 , -22.67301587, -22.24761905, -21.82222222,
+    //            -21.3968254 , -20.97142857, -20.54603175, -20.12063492,
+    //            -19.6952381 , -19.26984127, -18.84444444, -18.41904762,
+    //            -17.99365079, -17.56825397, -17.14285714, -16.71746032,
+    //            -16.29206349, -15.86666667, -15.44126984, -15.01587302,
+    //            -14.59047619, -14.16507937, -13.73968254, -13.31428571,
+    //            -12.88888889, -12.46349206, -12.03809524, -11.61269841,
+    //            -11.18730159, -10.76190476, -10.33650794,  -9.91111111,
+    //            -9.48571429,  -9.06031746,  -8.63492063,  -8.20952381,
+    //            -7.78412698,  -7.35873016,  -6.93333333,  -6.50793651,
+    //            -6.08253968,  -5.65714286,  -5.23174603,  -4.80634921,
+    //            -4.38095238,  -3.95555556,  -3.53015873,  -3.1047619 ,
+    //            -2.67936508,  -2.25396825,  -1.82857143,  -1.4031746 ,
+    //            -0.97777778,  -0.55238095,  -0.12698413,   0.2984127 ,
+    //            0.72380952,   1.14920635,   1.57460317,   2.        }
 {
     pose = ipose;
     time_ns = iscan.time_ns;
@@ -91,6 +93,8 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
     count.resize(vertRes, horRes);
     count.setZero();
     dirs.resize(vertRes * horRes, Eigen::Vector3f::Zero());
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr dirsPointCloud(new pcl::PointCloud<pcl::PointXYZ>());
     unsigned intDim = 0;
     if(iscan.scan.descriptorExists("intensity")){
         intDim = iscan.scan.getDescriptorDimension("intensity");
@@ -124,10 +128,14 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
           //   throw "Wrong image coordinates";
           // }
 
+          Eigen::Vector3f dir = Eigen::Vector3f(x, y, z).normalized();
           intensity(vertCoord, horCoord) = intVal;
           range(vertCoord, horCoord) = rangeVal;
           count(vertCoord, horCoord) += 1;
-          dirs[vertCoord * horRes + horCoord] = Eigen::Vector3f(x, y, z).normalized();
+          dirs[vertCoord * horRes + horCoord] = dir;
+
+          idxToCoord[dirsPointCloud->size()] = std::make_pair(vertCoord, horCoord);
+          dirsPointCloud->push_back(pcl::PointXYZ(dir(0), dir(1), dir(2)));
         }
       }
     }
@@ -264,14 +272,20 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
           }
           // PRINT(pt.transpose());
           if (pt != Eigen::Vector4f::Zero()) {
+            Eigen::Vector3f dir = pt.head<3>().normalized();
             intensity(r, c) = pt(3);
             range(r, c) = pt.head<3>().norm();
-            dirs[r * horRes + c] = pt.head<3>().normalized();
+            dirs[r * horRes + c] = dir;
             count(r, c) += 1;
+
+            idxToCoord[dirsPointCloud->size()] = std::make_pair(r, c);
+            dirsPointCloud->push_back(pcl::PointXYZ(dir(0), dir(1), dir(2)));
           }
         }
       }
     }
+
+    kdtree.setInputCloud(dirsPointCloud);
 
     ++ids;
     // LOG(INFO) << "allocated " << ids;
@@ -527,8 +541,8 @@ VisualView::getMask(const laser_slam_ros::PointCloud &point_cloud) const {
     // narrowing down search area
     int horCoordComp = getHorCoord(ptSensor(0), ptSensor(1), ptSensor(2));
     int vertCoordComp = getVertCoord(ptSensor(0), ptSensor(1), ptSensor(2));
-    int r1 = std::max(0, vertCoordComp - 32);
-    int r2 = std::min(vertRes - 1, vertCoordComp + 32);
+    int r1 = std::max(0, vertCoordComp - 16);
+    int r2 = std::min(vertRes - 1, vertCoordComp + 16);
     int c1 = std::max(0, horCoordComp - 32);
     int c2 = std::min(horRes - 1, horCoordComp + 32);
 
@@ -537,6 +551,33 @@ VisualView::getMask(const laser_slam_ros::PointCloud &point_cloud) const {
     int horCoord = coord.second;
     int vertCoord = coord.first;
 
+    {
+      Eigen::Vector3d dir = ptSensor.normalized();
+      std::vector<int> idxs;
+      std::vector<float> dists;
+      kdtree.nearestKSearch(pcl::PointXYZ(dir(0), dir(1), dir(2)), 4, idxs, dists);
+
+      std::pair<int, int> coordComp = idxToCoord.at(idxs.front());
+      if (coordComp.first != coord.first || coordComp.second != coord.second) {
+          LOG(INFO) << "coord = (" << coord.first << ", " << coord.second << "), coordComp = ("
+                    << coordComp.first << ", " << coordComp.second << "), coordProj = ("
+                    << vertCoordComp << ", " << horCoordComp << ")";
+        }
+    }
+    // {
+    //   int r1 = std::max(0, vertCoordComp - 12);
+    //   int r2 = std::min(vertRes - 1, vertCoordComp + 12);
+    //   int c1 = std::max(0, horCoordComp - 28);
+    //   int c2 = std::min(horRes - 1, horCoordComp + 28);
+    //
+    //   std::pair<int, int> coordComp = getClosestDir(ptSensor(0), ptSensor(1), ptSensor(2),
+    //                                             r1, c1, r2, c2);
+    //   if (coordComp.first != coord.first || coordComp.second != coord.second) {
+    //     LOG(INFO) << "coord = (" << coord.first << ", " << coord.second << "), coordComp = ("
+    //               << coordComp.first << ", " << coordComp.second << "), coordProj = ("
+    //               << vertCoordComp << ", " << horCoordComp << ")";
+    //   }
+    // }
 
     // cout << p << ": (" << ptSensor(0) << ", " << ptSensor(1) << ", " << ptSensor(2) << ")" << endl;
     // cout << "horCoord1 = " << horCoord << "\tvertCoord1 = " << vertCoord << endl;

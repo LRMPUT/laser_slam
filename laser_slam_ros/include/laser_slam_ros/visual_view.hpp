@@ -6,11 +6,19 @@
 #define LASER_SLAM_ROS_VISUAL_VIEW_HPP
 
 #include <array>
+#include <map>
 
 #include <Eigen/Dense>
 
 #include <laser_slam/common.hpp>
 #include <laser_slam_ros/common.hpp>
+
+#include <pcl/kdtree/kdtree_flann.h>
+
+// namespace pcl {
+//   class PointXYZ;
+//   template<typename PointT, typename Dist = ::flann::L2_Simple<float>> class KdTreeFLANN;
+// }
 
 namespace laser_slam_ros {
 
@@ -132,6 +140,9 @@ private:
   std::vector<uint8_t> rangeComp;
   std::vector<uint8_t> countComp;
   std::vector<uint8_t> dirsComp;
+
+  pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+  std::map<int, std::pair<int, int>> idxToCoord;
 
   static int ids;
 };
