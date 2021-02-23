@@ -13,7 +13,7 @@
 #include <laser_slam/common.hpp>
 #include <laser_slam_ros/common.hpp>
 
-#include <pcl/kdtree/kdtree_flann.h>
+// #include <pcl/kdtree/kdtree_flann.h>
 
 // namespace pcl {
 //   class PointXYZ;
@@ -114,6 +114,8 @@ private:
   std::vector<uint8_t> compressData(const std::vector<uint8_t> &data);
   std::vector<uint8_t> decompressData(const std::vector<uint8_t> &dataComp);
 
+  // void buildKdtree();
+
   bool organized;
 
   int horRes = 1024;
@@ -141,8 +143,8 @@ private:
   std::vector<uint8_t> countComp;
   std::vector<uint8_t> dirsComp;
 
-  pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
-  std::map<int, std::pair<int, int>> idxToCoord;
+  // pcl::KdTreeFLANN<pcl::PointXYZ>::Ptr kdtree;
+  // std::map<int, std::pair<int, int>> idxToCoord;
 
   static int ids;
 };

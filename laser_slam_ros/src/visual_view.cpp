@@ -94,7 +94,6 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
     count.setZero();
     dirs.resize(vertRes * horRes, Eigen::Vector3f::Zero());
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr dirsPointCloud(new pcl::PointCloud<pcl::PointXYZ>());
     unsigned intDim = 0;
     if(iscan.scan.descriptorExists("intensity")){
         intDim = iscan.scan.getDescriptorDimension("intensity");
@@ -133,9 +132,6 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
           range(vertCoord, horCoord) = rangeVal;
           count(vertCoord, horCoord) += 1;
           dirs[vertCoord * horRes + horCoord] = dir;
-
-          idxToCoord[dirsPointCloud->size()] = std::make_pair(vertCoord, horCoord);
-          dirsPointCloud->push_back(pcl::PointXYZ(dir(0), dir(1), dir(2)));
         }
       }
     }
@@ -277,15 +273,12 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
             range(r, c) = pt.head<3>().norm();
             dirs[r * horRes + c] = dir;
             count(r, c) += 1;
-
-            idxToCoord[dirsPointCloud->size()] = std::make_pair(r, c);
-            dirsPointCloud->push_back(pcl::PointXYZ(dir(0), dir(1), dir(2)));
           }
         }
       }
     }
 
-    kdtree.setInputCloud(dirsPointCloud);
+    // buildKdtree();
 
     ++ids;
     // LOG(INFO) << "allocated " << ids;
@@ -505,7 +498,25 @@ std::pair<int, int> VisualView::getClosestDir(const float &x, const float &y, co
   dir.normalize();
   std::pair<int, int> bestCoord(-1, -1);
   float bestDiff = std::numeric_limits<float>::max();
-  float bestDiffAll = std::numeric_limits<float>::max();
+
+  // std::vector<int> idxs;
+  // std::vector<float> dists;
+  // kdtree->nearestKSearch(pcl::PointXYZ(dir(0), dir(1), dir(2)), 4, idxs, dists);
+  //
+  // for (auto &idx : idxs) {
+  //   int r = idxToCoord.at(idx).first;
+  //   int c = idxToCoord.at(idx).second;
+  //
+  //   if(range(r, c) > rangeThresh) {
+  //     float diff = 1.0f - dir.dot(dirs[r * horRes + c]);
+  //     if ((diff < 1.0f - cos(dirThresh * M_PI / 180.0)) && diff < bestDiff) {
+  //       bestCoord.first = r;
+  //       bestCoord.second = c;
+  //       bestDiff = diff;
+  //     }
+  //   }
+  // }
+
   for(int r = r1; r < r2; ++r){
     for(int c = c1; c < c2; ++c){
       if(range(r, c) > rangeThresh) {
@@ -515,9 +526,6 @@ std::pair<int, int> VisualView::getClosestDir(const float &x, const float &y, co
           bestCoord.first = r;
           bestCoord.second = c;
           bestDiff = diff;
-        }
-        if (diff < bestDiffAll) {
-          bestDiffAll = diff;
         }
       }
     }
@@ -542,28 +550,46 @@ VisualView::getMask(const laser_slam_ros::PointCloud &point_cloud) const {
     int horCoordComp = getHorCoord(ptSensor(0), ptSensor(1), ptSensor(2));
     int vertCoordComp = getVertCoord(ptSensor(0), ptSensor(1), ptSensor(2));
     int r1 = std::max(0, vertCoordComp - 16);
-    int r2 = std::min(vertRes - 1, vertCoordComp + 16);
+    int r2 = std::min(vertRes, vertCoordComp + 16);
     int c1 = std::max(0, horCoordComp - 32);
-    int c2 = std::min(horRes - 1, horCoordComp + 32);
+    int c2 = std::min(horRes, horCoordComp + 32);
 
     std::pair<int, int> coord = getClosestDir(ptSensor(0), ptSensor(1), ptSensor(2),
                                               r1, c1, r2, c2);
     int horCoord = coord.second;
     int vertCoord = coord.first;
 
-    {
-      Eigen::Vector3d dir = ptSensor.normalized();
-      std::vector<int> idxs;
-      std::vector<float> dists;
-      kdtree.nearestKSearch(pcl::PointXYZ(dir(0), dir(1), dir(2)), 4, idxs, dists);
-
-      std::pair<int, int> coordComp = idxToCoord.at(idxs.front());
-      if (coordComp.first != coord.first || coordComp.second != coord.second) {
-          LOG(INFO) << "coord = (" << coord.first << ", " << coord.second << "), coordComp = ("
-                    << coordComp.first << ", " << coordComp.second << "), coordProj = ("
-                    << vertCoordComp << ", " << horCoordComp << ")";
-        }
-    }
+    // {
+    //   Eigen::Vector3f dir = ptSensor.normalized().cast<float>();
+    //   std::vector<int> idxs;
+    //   std::vector<float> dists;
+    //   kdtree.nearestKSearch(pcl::PointXYZ(dir(0), dir(1), dir(2)), 4, idxs, dists);
+    //
+    //   std::pair<int, int> coordComp(-1, -1);
+    //
+    //   float bestDiff = std::numeric_limits<float>::max();
+    //   for (int i = 0; i < idxs.size(); ++i){
+    //     int r = idxToCoord.at(idxs[i]).first;
+    //     int c = idxToCoord.at(idxs[i]).second;
+    //
+    //     if(range(r, c) > rangeThresh) {
+    //       float diff = 1.0f - dir.dot(dirs[r * horRes + c]);
+    //       if ((diff < 1.0f - cos(dirThresh * M_PI / 180.0)) && diff < bestDiff) {
+    //         coordComp.first = r;
+    //         coordComp.second = c;
+    //         bestDiff = diff;
+    //       }
+    //     }
+    //   }
+    //
+    //   if (coordComp.first != coord.first || coordComp.second != coord.second) {
+    //       LOG(INFO) << "coord = (" << coord.first << ", " << coord.second << "), coordComp = ("
+    //                 << coordComp.first << ", " << coordComp.second << "), coordProj = ("
+    //                 << vertCoordComp << ", " << horCoordComp << ")";
+    //       LOG(INFO) << "diff = " << 1.0f - dir.dot(dirs[coord.first * horRes + coord.second])
+    //                 << ", diffComp = " << 1.0f - dir.dot(dirs[coordComp.first * horRes + coordComp.second]);
+    //     }
+    // }
     // {
     //   int r1 = std::max(0, vertCoordComp - 12);
     //   int r2 = std::min(vertRes - 1, vertCoordComp + 12);
@@ -655,6 +681,8 @@ void VisualView::compress() {
     dirsComp = compressData(data);
     dirs.clear();
   }
+  // kdtree.reset();
+  // idxToCoord.clear();
   isCompressedFlag = true;
 }
 
@@ -683,9 +711,31 @@ void VisualView::decompress() {
     dirsComp.clear();
     // cout << "dirs decompressed" << endl;
   }
+  // buildKdtree();
+
   isCompressedFlag = false;
 }
 
+// void VisualView::buildKdtree() {
+//   LOG(INFO) << "Building kdtree";
+//
+//   idxToCoord.clear();
+//   kdtree.reset(new pcl::KdTreeFLANN<pcl::PointXYZ>());
+//
+//   pcl::PointCloud<pcl::PointXYZ>::Ptr dirsPointCloud(new pcl::PointCloud<pcl::PointXYZ>());
+//   for(int r = 0; r < vertRes; ++r) {
+//     for (int c = 0; c < horRes; ++c) {
+//       if (count(r, c) > 0) {
+//         idxToCoord[dirsPointCloud->size()] = std::make_pair(r, c);
+//         dirsPointCloud->push_back(pcl::PointXYZ(dirs[r * horRes + c](0),
+//                                                 dirs[r * horRes + c](1),
+//                                                 dirs[r * horRes + c](2)));
+//       }
+//     }
+//   }
+//
+//   kdtree->setInputCloud(dirsPointCloud);
+// }
 
 int VisualView::ids = 0;
 
