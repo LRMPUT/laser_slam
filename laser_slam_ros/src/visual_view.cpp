@@ -1,6 +1,25 @@
-//
-// Created by janw on 02.06.2020.
-//
+/*
+    Copyright (c) 2021 Mobile Robots Laboratory at Poznan University of Technology:
+    -Jan Wietrzykowski name.surname [at] put.poznan.pl
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+*/
 
 // STL
 #include <iostream>
@@ -12,9 +31,6 @@
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
 #include "laser_slam_ros/visual_view.hpp"
 
 #define PRINT(x) std::cout << #x << " = " << x << std::endl
@@ -22,22 +38,22 @@
 using std::cout;
 using std::endl;
 
-#include <signal.h>
-#include <termios.h>
-#include <stdio.h>
-int getch()
-{
-  static struct termios oldt, newt;
-  tcgetattr( STDIN_FILENO, &oldt);           // save old settings
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON);                 // disable buffering
-  tcsetattr( STDIN_FILENO, TCSANOW, &newt);  // apply new settings
-
-  int c = getchar();  // read character (non-blocking)
-
-  tcsetattr( STDIN_FILENO, TCSANOW, &oldt);  // restore old settings
-  return c;
-}
+// #include <signal.h>
+// #include <termios.h>
+// #include <stdio.h>
+// int getch()
+// {
+//   static struct termios oldt, newt;
+//   tcgetattr( STDIN_FILENO, &oldt);           // save old settings
+//   newt = oldt;
+//   newt.c_lflag &= ~(ICANON);                 // disable buffering
+//   tcsetattr( STDIN_FILENO, TCSANOW, &newt);  // apply new settings
+//
+//   int c = getchar();  // read character (non-blocking)
+//
+//   tcsetattr( STDIN_FILENO, TCSANOW, &oldt);  // restore old settings
+//   return c;
+// }
 
 namespace laser_slam_ros {
 
@@ -58,6 +74,7 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
     vertRes(ivertRes),
     organized(iorganized),
     pixelOffsets{0, 6, 12, 18},
+    // MulRan
     vertAngles{-15.654, -15.062, -14.497, -13.947, -13.489, -12.908, -12.337, -11.803,
               -11.347, -10.78, -10.224, -9.675, -9.239, -8.664, -8.118, -7.574,
               -7.131, -6.575, -6.019, -5.47, -5.037, -4.478, -3.921, -3.382,
@@ -66,6 +83,7 @@ VisualView::VisualView(const laser_slam::LaserScan &iscan,
               5.443, 5.977, 6.535, 7.079, 7.54, 8.086, 8.63, 9.189,
               9.633, 10.182, 10.734, 11.309, 11.751, 12.305, 12.852, 13.442,
               13.91, 14.444, 15.012, 15.615, 16.073, 16.629, 17.217, 17.84}
+    // KITTI
     // vertAngles{-24.8       , -24.37460317, -23.94920635, -23.52380952,
     //            -23.0984127 , -22.67301587, -22.24761905, -21.82222222,
     //            -21.3968254 , -20.97142857, -20.54603175, -20.12063492,
@@ -558,6 +576,8 @@ VisualView::getMask(const laser_slam_ros::PointCloud &point_cloud) const {
                                               r1, c1, r2, c2);
     int horCoord = coord.second;
     int vertCoord = coord.first;
+    // int horCoord = horCoordComp;
+    // int vertCoord = vertCoordComp;
 
     // {
     //   Eigen::Vector3f dir = ptSensor.normalized().cast<float>();
